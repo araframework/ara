@@ -9,7 +9,6 @@ import (
     "errors"
     "net/http"
     "reflect"
-    "strconv"
 )
 
 const (
@@ -23,7 +22,6 @@ const (
 type Route struct {
     uri     string       // the request uri
     handler http.Handler // the function to handle this request
-    isDir   bool
 }
 
 // contains all routes
@@ -34,12 +32,14 @@ type Router struct {
     routes          []*Route
     // Routes by name for URL building.
     namedRoutes     map[string]*Route
+
+    // this is for string method name reflect invoke
+    ControllerValue reflect.Value
 }
 
 func (route *Route)String() string {
     str := "Route:[" +
     "uri:" + route.uri + "," +
-    "isDir:" + strconv.FormatBool(route.isDir) +
     "]"
 
     return str
@@ -59,8 +59,12 @@ func (router * Router) String() string {
 
 func NewRouter() *Router {
     router := &Router{namedRoutes: make(map[string]*Route)}
-//    router.initRouter() // TODO not work yet, why?
+    router.initRouter()
     return router
+}
+
+func (router *Router) SetControllerValue(cValue reflect.Value) {
+    router.ControllerValue = cValue
 }
 
 func (router *Router) initRouter() {
@@ -90,7 +94,7 @@ func (router *Router) initRouter() {
             continue
         }
 
-        rt, err := buildRoute(line)
+        rt, err := router.buildRoute(line)
         if err != nil {
             continue
         }
@@ -100,7 +104,7 @@ func (router *Router) initRouter() {
 }
 
 // validate the route configured in router file
-func buildRoute(line string) (rt *Route, err error) {
+func (router *Router) buildRoute(line string) (rt *Route, err error) {
     routeItems := strings.SplitN(line, " ", 2)
     for _, item := range routeItems {
         if strings.TrimSpace(item) == "" {
@@ -113,22 +117,30 @@ func buildRoute(line string) (rt *Route, err error) {
 
     uri := strings.TrimSpace(routeItems[0])
     var handler http.Handler
-    isDir := strings.HasSuffix(strings.TrimSpace(routeItems[1]), "/")
-    if !isDir {
-        handler = http.HandlerFunc(makeHandler(strings.TrimSpace(routeItems[1])))
+    // if starts with "FS:", that's FileServerHandler
+    handleFuncName := strings.TrimSpace(routeItems[1])
+    isFs := strings.HasPrefix(handleFuncName, "FS:")
+    if isFs {
+        handler = http.FileServer(http.Dir(handleFuncName[3:]))
+    } else {
+        handler = http.HandlerFunc(router.makeHandler(handleFuncName))
     }
 
-    rt = &Route{uri, handler, isDir}
+    // TODO replace this ugly shit whit Router.map[uri]Route
+    rt = &Route{uri, handler}
+    if uri == "/" {
+        rootRoute = rt
+    }
     return
 }
 ///////////////////////////// not work properly yet //////////////////
-func makeHandler(tp string) http.HandlerFunc {
+func (router *Router) makeHandler(tp string) http.HandlerFunc {
     fn := func(w http.ResponseWriter, r *http.Request) {
         fmt.Println(tp)
 
         w.Header().Set("content-type", "application/json")
 
-        method := reflect.ValueOf(&t).MethodByName(tp)
+        method := router.ControllerValue.MethodByName(tp)
 
         in := make([]reflect.Value, 2)
         in[0] = reflect.ValueOf(w)
@@ -140,7 +152,7 @@ func makeHandler(tp string) http.HandlerFunc {
         return func(w http.ResponseWriter, r *http.Request) {
             fmt.Println("404")
 
-            method := reflect.ValueOf(&t).MethodByName("NotFound")
+            method := router.ControllerValue.MethodByName("NotFound")
             method.Call([]reflect.Value{})
         }
     }
@@ -148,14 +160,14 @@ func makeHandler(tp string) http.HandlerFunc {
     return fn
 }
 /////////////////////////////////////////////////////////////////////
-
+// TODO replace this ugly shit whit Router.map[uri]Route
 var rootRoute *Route
 
 // register new path -> function
 func (router *Router) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
     rt := &Route{uri: pattern, handler: http.HandlerFunc(handler)}
     router.routes = append(router.routes, rt)
-
+    // TODO replace this ugly shit whit Router.map[uri]Route
     if pattern == "/" {
         rootRoute = rt
     }
@@ -164,6 +176,7 @@ func (router *Router) HandleFunc(pattern string, handler func(http.ResponseWrite
 func (router *Router) Handle(pattern string, handler http.Handler) {
     rt := &Route{uri: pattern, handler: handler}
     router.routes = append(router.routes, rt)
+    // TODO replace this ugly shit whit Router.map[uri]Route
     if pattern == "/" {
         rootRoute = rt
     }
@@ -184,6 +197,7 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
         }
     }
 
+    // not found any handler, run root handler "/"
     if rootRoute != nil {
         rootRoute.handler.ServeHTTP(w, r)
     }

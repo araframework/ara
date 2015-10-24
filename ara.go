@@ -8,10 +8,7 @@ import (
     "net/http"
 )
 
-type T struct {}
-
 var alog *aralog.Logger
-var t T
 
 func init() {
     fmt.Println("ara:init()")
