@@ -149,15 +149,24 @@ func makeHandler(tp string) http.HandlerFunc {
 }
 /////////////////////////////////////////////////////////////////////
 
+var rootRoute *Route
+
 // register new path -> function
 func (router *Router) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
     rt := &Route{uri: pattern, handler: http.HandlerFunc(handler)}
     router.routes = append(router.routes, rt)
+
+    if pattern == "/" {
+        rootRoute = rt
+    }
 }
 
 func (router *Router) Handle(pattern string, handler http.Handler) {
     rt := &Route{uri: pattern, handler: handler}
     router.routes = append(router.routes, rt)
+    if pattern == "/" {
+        rootRoute = rt
+    }
 }
 
 // ---------------- runtime --------------------
@@ -171,6 +180,11 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
         if r.URL.Path == route.uri {
             alog.Debug("found handler")
             route.handler.ServeHTTP(w, r)
+            return
         }
+    }
+
+    if rootRoute != nil {
+        rootRoute.handler.ServeHTTP(w, r)
     }
 }
