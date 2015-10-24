@@ -155,6 +155,11 @@ func (router *Router) HandleFunc(pattern string, handler func(http.ResponseWrite
     router.routes = append(router.routes, rt)
 }
 
+func (router *Router) Handle(pattern string, handler http.Handler) {
+    rt := &Route{uri: pattern, handler: handler}
+    router.routes = append(router.routes, rt)
+}
+
 // ---------------- runtime --------------------
 // this will run in an incoming http request
 func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
