@@ -5,9 +5,13 @@ import (
     "os"
 
     "github.com/araframework/aralog"
+    "net/http"
 )
 
+type T struct {}
+
 var alog *aralog.Logger
+var t T
 
 func init() {
     fmt.Println("ara:init()")
@@ -22,9 +26,12 @@ func init() {
     alog = logger
 }
 
-func Start() {
+func Start(router *Router) {
     fmt.Println("ara:Start()")
-    initRouter()
 
-    
+    err := http.ListenAndServe(":8600", router)
+    if err != nil {
+        fmt.Println("ListenAndServe:", err)
+    }
+
 }

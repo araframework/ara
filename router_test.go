@@ -5,30 +5,30 @@ import (
     "os"
     "bytes"
     "io/ioutil"
+    "fmt"
 )
 
-func Test_initRouter(t *testing.T) {
+func TestInitRouter(t *testing.T) {
     setup(t)
     defer teardown(t)
 
-    initRouter()
+    router := NewRouter()
 
-    if len(routeMap) <= 0 {
+    if len(router.routes) <= 0 {
         t.Fatal("empty route map")
     }
 
-    rt, ok := routeMap["GET/abc"]
-    if !ok {
-        t.Fatal("specified route not found from map")
-    }
+    fmt.Println(router.String())
 
-    if rt.uri != "/abc" || rt.method != GET || rt.handler != "AbcHandler" {
-        t.Fatal("route: " + rt.method + " : " + rt.uri + " : " + rt.handler)
+    rt := router.routes[0]
+
+    if rt.uri != "/abc" || rt.handler == nil {
+        t.Fatal("route: " + rt.uri)
     }
 }
 
-func Test_buildRoute(t *testing.T) {
-    rt, err := buildRoute("GET /abc XxxHandler")
+func TestBuildRoute(t *testing.T) {
+    rt, err := buildRoute("/abc XxxHandler")
     if err != nil {
         t.Fatal(err)
     }
@@ -49,7 +49,8 @@ func setup(t *testing.T) {
     var buffer bytes.Buffer
     buffer.WriteString("#this is the 1st line comment\n")
     buffer.WriteString(" #and with space at start, end   \n")
-    buffer.WriteString("GET /abc      AbcHandler\n")
+    buffer.WriteString("/abc      AbcHandler\n")
+    buffer.WriteString("/         static/\n")
     err = ioutil.WriteFile("conf/router", buffer.Bytes(), 0600)
     if err != nil {
         t.Error(err)

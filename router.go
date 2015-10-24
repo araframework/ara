@@ -7,6 +7,9 @@ import (
     "path"
     "strings"
     "errors"
+    "net/http"
+    "reflect"
+    "strconv"
 )
 
 const (
@@ -16,18 +19,52 @@ const (
     DELETE = "DELETE"
 )
 
-type route struct {
-    method  string // http method
-    uri     string // the request uri
-    handler string // the function to handle this request
+// define route: uri pattern -> handler function name
+type Route struct {
+    uri     string       // the request uri
+    handler http.Handler // the function to handle this request
+    isDir   bool
 }
 
-var routeMap map[string]route
+// contains all routes
+type Router struct {
+    // Configurable Handler to be used when no route matches.
+    NotFoundHandler http.Handler
+    // Routes to be matched, in order.
+    routes          []*Route
+    // Routes by name for URL building.
+    namedRoutes     map[string]*Route
+}
 
-func initRouter() {
-    alog.Debug("router:init()")
+func (route *Route)String() string {
+    str := "Route:[" +
+    "uri:" + route.uri + "," +
+    "isDir:" + strconv.FormatBool(route.isDir) +
+    "]"
 
-    routeMap = make(map[string]route)
+    return str
+}
+
+func (router * Router) String() string {
+    str := "Router: ["
+    for _, route := range router.routes {
+        str += route.String()
+        str += " "
+    }
+    str += "]"
+    return str
+}
+
+// ------------------ init ---------------------
+
+func NewRouter() *Router {
+    router := &Router{namedRoutes: make(map[string]*Route)}
+//    router.initRouter() // TODO not work yet, why?
+    return router
+}
+
+func (router *Router) initRouter() {
+    alog.Debug("router:initRouter()")
 
     // the router conf file named: router
     confPath := path.Join("conf", "router")
@@ -58,13 +95,13 @@ func initRouter() {
             continue
         }
 
-        routeMap[rt.method + rt.uri] = rt
+        router.routes = append(router.routes, rt)
     }
 }
 
 // validate the route configured in router file
-func buildRoute(line string) (rt route, err error) {
-    routeItems := strings.SplitN(line, " ", 3)
+func buildRoute(line string) (rt *Route, err error) {
+    routeItems := strings.SplitN(line, " ", 2)
     for _, item := range routeItems {
         if strings.TrimSpace(item) == "" {
             alog.Debug("empty item for line" + line)
@@ -74,6 +111,61 @@ func buildRoute(line string) (rt route, err error) {
         }
     }
 
-    rt = route{strings.TrimSpace(routeItems[0]), strings.TrimSpace(routeItems[1]), strings.TrimSpace(routeItems[2])}
+    uri := strings.TrimSpace(routeItems[0])
+    var handler http.Handler
+    isDir := strings.HasSuffix(strings.TrimSpace(routeItems[1]), "/")
+    if !isDir {
+        handler = http.HandlerFunc(makeHandler(strings.TrimSpace(routeItems[1])))
+    }
+
+    rt = &Route{uri, handler, isDir}
     return
+}
+///////////////////////////// not work properly yet //////////////////
+func makeHandler(tp string) http.HandlerFunc {
+    fn := func(w http.ResponseWriter, r *http.Request) {
+        fmt.Println(tp)
+
+        w.Header().Set("content-type", "application/json")
+
+        method := reflect.ValueOf(&t).MethodByName(tp)
+
+        in := make([]reflect.Value, 2)
+        in[0] = reflect.ValueOf(w)
+        in[1] = reflect.ValueOf(r)
+
+        method.Call(in)
+    }
+    if fn == nil {
+        return func(w http.ResponseWriter, r *http.Request) {
+            fmt.Println("404")
+
+            method := reflect.ValueOf(&t).MethodByName("NotFound")
+            method.Call([]reflect.Value{})
+        }
+    }
+
+    return fn
+}
+/////////////////////////////////////////////////////////////////////
+
+// register new path -> function
+func (router *Router) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+    rt := &Route{uri: pattern, handler: http.HandlerFunc(handler)}
+    router.routes = append(router.routes, rt)
+}
+
+// ---------------- runtime --------------------
+// this will run in an incoming http request
+func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    fmt.Println("Router ServeHTTP:" + r.URL.String())
+    // 1, match regular path pattern to find the handler
+    // 2, call the handler function
+
+    for _, route := range router.routes {
+        if r.URL.Path == route.uri {
+            alog.Debug("found handler")
+            route.handler.ServeHTTP(w, r)
+        }
+    }
 }
