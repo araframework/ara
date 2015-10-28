@@ -5,7 +5,6 @@ import (
     "os"
     "bytes"
     "io/ioutil"
-    "fmt"
 )
 
 func TestInitRouter(t *testing.T) {
@@ -14,27 +13,29 @@ func TestInitRouter(t *testing.T) {
 
     router := NewRouter()
 
-    if len(router.routes) <= 0 {
+    if len(router.node.children) <= 0 {
         t.Fatal("empty route map")
     }
 
-    fmt.Println(router.String())
+    abcNode := router.node.children["abc"]
 
-    rt := router.routes[0]
-
-    if rt.uri != "/abc" || rt.handler == nil {
-        t.Fatal("route: " + rt.uri)
+    if abcNode.name != "abc" || abcNode.handler == nil {
+        t.Fatal("Node: /abc")
     }
 }
 
 func TestBuildRoute(t *testing.T) {
-    rt, err := buildRoute("/abc XxxHandler")
+    setup(t)
+    defer teardown(t)
+    router := NewRouter()
+    err := router.buildNode("/abc XxxHandler")
     if err != nil {
         t.Fatal(err)
     }
 
-    if rt.uri != "/abc" {
-        t.Fatal("uri error:", rt.uri)
+    abcNode := router.node.children["abc"]
+    if abcNode.name != "abc" {
+        t.Fatal("uri error: /abc")
     }
 }
 
@@ -50,7 +51,9 @@ func setup(t *testing.T) {
     buffer.WriteString("#this is the 1st line comment\n")
     buffer.WriteString(" #and with space at start, end   \n")
     buffer.WriteString("/abc      AbcHandler\n")
-    buffer.WriteString("/         static/\n")
+    buffer.WriteString("/         FS:static\n")
+//    buffer.WriteString("/abc/{id}        AbcIdHandler\n")
+//    buffer.WriteString("/abc/{id}/xyz    AbcIdXyzHandler\n")
     err = ioutil.WriteFile("conf/router", buffer.Bytes(), 0600)
     if err != nil {
         t.Error(err)

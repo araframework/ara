@@ -6,7 +6,9 @@ import (
     "io"
 )
 
-type MyT T
+type MyController struct {
+    Controller
+}
 
 func TestStart(t *testing.T) {
     setup(t)
@@ -14,6 +16,6 @@ func TestStart(t *testing.T) {
     // Start()
 }
 
-func (t *MyT) AbcHandler(w http.ResponseWriter, r *http.Request) {
+func (c *MyController) AbcHandler(w http.ResponseWriter, r *http.Request) {
     io.WriteString(w, "AbcHandler")
 }
