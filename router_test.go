@@ -22,6 +22,11 @@ func TestInitRouter(t *testing.T) {
     if abcNode.name != "abc" || abcNode.handler == nil {
         t.Fatal("Node: /abc")
     }
+
+    idNode := abcNode.children["id"]
+    if idNode.name != "id" || idNode.handler == nil {
+        t.Fatal("Node: /abc/{id}")
+    }
 }
 
 func TestBuildRoute(t *testing.T) {
@@ -52,7 +57,7 @@ func setup(t *testing.T) {
     buffer.WriteString(" #and with space at start, end   \n")
     buffer.WriteString("/abc      AbcHandler\n")
     buffer.WriteString("/         FS:static\n")
-//    buffer.WriteString("/abc/{id}        AbcIdHandler\n")
+    buffer.WriteString("/abc/{id}        AbcIdHandler\n")
 //    buffer.WriteString("/abc/{id}/xyz    AbcIdXyzHandler\n")
     err = ioutil.WriteFile("conf/router", buffer.Bytes(), 0600)
     if err != nil {

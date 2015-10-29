@@ -31,12 +31,12 @@ type Router struct {
     // Configurable Handler to be used when no route matches.
     NotFoundHandler http.Handler
 
-    node *Node
+    node            *Node
 
     // Routes to be matched, in order.
-//    routes          []*Route
-//    // Routes by name for URL building.
-//    namedRoutes     map[string]*Route
+    //    routes          []*Route
+    //    // Routes by name for URL building.
+    //    namedRoutes     map[string]*Route
 
     // this is for string method name reflect invoke
     ControllerValue reflect.Value
@@ -129,18 +129,45 @@ func (router *Router) buildNode(line string) (err error) {
     }
 
     currNode := router.node
-    uriSections := router.splitUri(uri) // avoid the first slash
+    uriSections := router.splitUri(uri)
     for _, section := range uriSections {
-        if currNode.children[section] == nil {
-            // TODO static or dynamic
-            currNode.children[section] = NewNode(section, NODE_STATIC, nil)
+        sec, secType, err := router.getSection(section)
+        if err != nil {
+            return err
         }
-        currNode = currNode.children[section]
+
+        if currNode.children[sec] == nil {
+            currNode.children[sec] = NewNode(sec, secType, nil)
+        }
+        currNode = currNode.children[sec]
     }
 
     // only the last leaf should set the handler
     currNode.handler = h
 
+    return
+}
+
+func (router * Router) getSection(section string) (sec string, secType uint, err error) {
+    if section == "" {
+        err = errors.New("section is empty in url")
+        return
+    }
+
+    if strings.HasPrefix(section, "{") && strings.HasSuffix(section, "}") {
+        dynSectionName := strings.TrimSpace(section[1:len(section) - 1])
+        if dynSectionName == "" {
+            err = errors.New("section is empty in url: " + section)
+            return
+        }
+
+        sec = dynSectionName
+        secType = NODE_DYNAMIC
+        return
+    }
+
+    sec = section
+    secType = NODE_STATIC
     return
 }
 
@@ -217,12 +244,31 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     // 1, match regular path pattern to find the handler
     // 2, call the handler function
 
+    err := r.ParseForm()
+    if err != nil {
+        // DO NOTHING?
+    }
+
     currNode := router.node
     sections := router.splitUri(r.URL.Path)
     for _, section := range sections {
-        currNode = currNode.children[section]
+        nextNode := currNode.children[section]
 
-        // not found node, break and let rootHandler handle it
+        if nextNode != nil {
+            currNode = nextNode
+            continue
+        }
+
+        // not found static node, try to find in dynamic way
+        for key, node := range currNode.children {
+            if node.nodeType == NODE_DYNAMIC {
+                r.Form.Add(key, section)
+                currNode = node
+                break
+            }
+        }
+
+        // still not found, break and let rootHandler handle it
         if currNode == nil {
             break
         }
@@ -234,16 +280,16 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
         rootHandler.ServeHTTP(w, r)
     }
 
-//    for _, route := range router.routes {
-//        if r.URL.Path == route.uri {
-//            alog.Debug("found handler")
-//            route.handler.ServeHTTP(w, r)
-//            return
-//        }
-//    }
-//
-//    // not found any handler, run root handler "/"
-//    if rootRoute != nil {
-//        rootRoute.handler.ServeHTTP(w, r)
-//    }
+    //    for _, route := range router.routes {
+    //        if r.URL.Path == route.uri {
+    //            alog.Debug("found handler")
+    //            route.handler.ServeHTTP(w, r)
+    //            return
+    //        }
+    //    }
+    //
+    //    // not found any handler, run root handler "/"
+    //    if rootRoute != nil {
+    //        rootRoute.handler.ServeHTTP(w, r)
+    //    }
 }
