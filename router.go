@@ -89,7 +89,7 @@ func (router *Router) initRouter() {
         fmt.Println(line) // Println will add back the final '\n'
 
         line = strings.TrimSpace(line)
-        if strings.HasPrefix(line, "#") {
+        if strings.HasPrefix(line, "#") || line == "" {
             continue
         }
 
