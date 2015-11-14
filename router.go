@@ -39,7 +39,8 @@ type Router struct {
     //    namedRoutes     map[string]*Route
 
     // this is for string method name reflect invoke
-    ControllerValue reflect.Value
+//    ControllerValue reflect.Value
+    controllerImpl interface{}
 }
 
 //func (router * Router) String() string {
@@ -55,6 +56,7 @@ type Router struct {
 // ------------------ init ---------------------
 
 func NewRouter() *Router {
+    // "/" will respond all request
     node := NewNode("/", NODE_STATIC, nil)
     router := &Router{
         node: node}
@@ -62,8 +64,8 @@ func NewRouter() *Router {
     return router
 }
 
-func (router *Router) SetControllerValue(cValue reflect.Value) {
-    router.ControllerValue = cValue
+func (router *Router) SetController(impl interface{}) {
+    router.controllerImpl = impl
 }
 
 func (router *Router) initRouter() {
@@ -195,7 +197,8 @@ func (router *Router) makeHandler(tp string) http.HandlerFunc {
 
         w.Header().Set("content-type", "application/json")
 
-        method := router.ControllerValue.MethodByName(tp)
+        controllerValue := reflect.ValueOf(router.controllerImpl)
+        method := controllerValue.MethodByName(tp)
 
         in := make([]reflect.Value, 2)
         in[0] = reflect.ValueOf(w)
@@ -207,7 +210,8 @@ func (router *Router) makeHandler(tp string) http.HandlerFunc {
         return func(w http.ResponseWriter, r *http.Request) {
             fmt.Println("404")
 
-            method := router.ControllerValue.MethodByName("NotFound")
+            controllerValue := reflect.ValueOf(router.controllerImpl)
+            method := controllerValue.MethodByName("NotFound")
             method.Call([]reflect.Value{})
         }
     }

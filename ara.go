@@ -32,3 +32,7 @@ func Start(router *Router) {
     }
 
 }
+
+func Logger() *aralog.Logger {
+    return alog
+}
