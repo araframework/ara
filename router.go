@@ -208,7 +208,7 @@ func (router *Router) makeHandler(tp string) http.HandlerFunc {
     }
     if fn == nil {
         return func(w http.ResponseWriter, r *http.Request) {
-            fmt.Println("404")
+            alog.Debug("404 The method NotFound")
 
             controllerValue := reflect.ValueOf(router.controllerImpl)
             method := controllerValue.MethodByName("NotFound")
