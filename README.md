@@ -36,8 +36,15 @@ type Controller struct {
     ara.Controller
 }
 
+// process /hello
 func (c *Controller) MyHandler(w http.ResponseWriter, r *http.Request) {
     io.WriteString(w, "Hello, 世界")
+}
+
+// process /hello/{id}
+func (c *Controller) MyHandlerWithId(w http.ResponseWriter, r *http.Request) {
+    id := r.Form.Get("id")
+    w.Write([]byte(id))
 }
 ```
 - main.go
@@ -62,10 +69,12 @@ func main() {
 
 ```
 /             FS:static
-/hello      MyHandler
+/hello        MyHandler
+/hello/{id}   MyHandlerWithId
 ```
 - `go build` and run the executable file
 - Navigate browser to `http://localhost:8600` will show the index.html, and `http://localhost:8600/hello`will show `Hello, 世界`
+- And `http://localhost:8600/hello/abc123` will show `abc123`
 
 # TODO
 - namespace support
