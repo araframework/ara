@@ -74,7 +74,7 @@ func main() {
 ```
 - `go build` and run the executable file
 - Navigate browser to `http://localhost:8600` will show the index.html
-- And `http://localhost:8600/hello`will show `Hello, 世界`
+- And `http://localhost:8600/hello` will show `Hello, 世界`
 - And `http://localhost:8600/hello/abc123` will show `abc123`
 
 # TODO
