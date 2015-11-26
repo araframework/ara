@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/araframework/ara.svg?branch=master)](https://travis-ci.org/araframework/ara)
+
 # Ara
 A simple web framework that supports RESTful router rules, and text-based handler configuration(see the following example)
 
